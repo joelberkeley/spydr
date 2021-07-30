@@ -11,14 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.mypy]
-files = "spydr,test"
-warn_redundant_casts = true
-warn_unused_ignores = true
-strict_equality = true
-disallow_any_generics = true
-disallow_untyped_defs = true
+def test() -> None:
+    assert True
