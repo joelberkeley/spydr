@@ -1,3 +1,7 @@
+.idea
+
+### GitHub default ignores start here ###
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
