@@ -1,0 +1,10 @@
+absl-py==0.13.0
+jax==0.2.18
+mypy==0.910
+mypy-extensions==0.4.3
+numpy==1.21.1
+opt-einsum==3.3.0
+pkg_resources==0.0.0
+six==1.16.0
+toml==0.10.2
+typing-extensions==3.10.0.0

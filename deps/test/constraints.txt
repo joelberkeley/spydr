@@ -1,0 +1,14 @@
+absl-py==0.13.0
+attrs==21.2.0
+iniconfig==1.1.1
+jax==0.2.18
+numpy==1.21.1
+opt-einsum==3.3.0
+packaging==21.0
+pkg_resources==0.0.0
+pluggy==0.13.1
+py==1.10.0
+pyparsing==2.4.7
+pytest==6.2.4
+six==1.16.0
+toml==0.10.2
