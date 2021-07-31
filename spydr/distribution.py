@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from jax import numpy as np
+from jax import scipy
 
 
 class Distribution(ABC):
@@ -49,7 +50,7 @@ class Gaussian(ClosedFormDistribution):
     cov: np.ndarray
 
     def pdf(self, x: np.ndarray) -> np.ndarray:
-        ...
+        return scipy.stats.multivariate_normal.pdf(x, self.mean, self.cov)
 
     def cdf(self, x: np.ndarray) -> np.ndarray:
         ...

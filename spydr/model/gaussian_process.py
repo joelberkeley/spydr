@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
+from __future__ import annotations
+
 from collections import Callable
 from dataclasses import dataclass
 
@@ -18,7 +20,7 @@ from jax.scipy.linalg import solve_triangular
 from jax import numpy as np
 from mypy.nodes import TypeVar
 
-from spydr.distribution import Distribution, Gaussian
+from spydr.distribution import Gaussian
 from spydr.model.kernel import Kernel
 from spydr.model.mean_function import MeanFunction
 from spydr.optimize import Optimizer
@@ -30,7 +32,7 @@ class GaussianProcess:
     kernel: Kernel
 
 
-def marginalise(gp: GaussianProcess, x: np.ndarray) -> Distribution:
+def marginalise(gp: GaussianProcess, x: np.ndarray) -> Gaussian:
     return Gaussian(gp.mean_function(x), gp.kernel(x, x))
 
 
@@ -78,5 +80,4 @@ def fit(
         return _log_marginal_likelihood(mk_prior(hp), mk_likelihood(hp), data)
 
     params = optimizer(objective)
-
     return _posterior(mk_prior(params), mk_likelihood(params), data)
