@@ -13,10 +13,18 @@
 # limitations under the License
 from typing import Callable
 
-from jax import numpy as np
+import jax.numpy as np
+
+from spydr.util import assert_shape
 
 Kernel = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 
 def rbf(length_scale: np.ndarray) -> Kernel:
-    ...
+    def kernel(x: np.ndarray, x_: np.ndarray) -> np.ndarray:
+        assert_shape(x, (None, 1))
+        assert_shape(x_, (None, 1))
+        l2_norm = np.sum((x[:, None] - x_[None]) ** 2, axis=2)
+        return assert_shape(np.exp(- l2_norm / (2 * length_scale ** 2)), (len(x), len(x_)))
+
+    return kernel

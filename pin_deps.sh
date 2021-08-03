@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+VENV_DIR=$(mktemp -d -p $(pwd))
+
+pin_deps () {
+  python3.8 -m venv $VENV_DIR/$1
+  source $VENV_DIR/$1/bin/activate
+  pip install --upgrade pip
+  if [ "$2" = true ]; then
+    pip install -e .
+  fi
+  pip install -r $1/requirements.txt
+  pip freeze --exclude-editable spydr > $1/constraints.txt
+  deactivate
+}
+
+pin_deps deps/format false
+pin_deps deps/types true
+pin_deps deps/test true
+
+rm -rf $VENV_DIR

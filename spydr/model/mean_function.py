@@ -15,8 +15,13 @@ from typing import Callable
 
 from jax import numpy as np
 
+from spydr.util import assert_shape
+
 MeanFunction = Callable[[np.ndarray], np.ndarray]
 
 
 def zero(x: np.ndarray) -> np.ndarray:
-    ...
+    assert_shape(x, (None, 1))
+    res = np.zeros([len(x)])
+    assert_shape(res, (len(x),))
+    return res

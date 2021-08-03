@@ -31,5 +31,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires="~=3.8",
-    install_requires=["jax~=0.2"],
+    install_requires=["jax~=0.2", "jaxlib"],
 )

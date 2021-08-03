@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
 from jax import numpy as np
 from jax import scipy
+
+from spydr.util import assert_shape
 
 
 class Distribution(ABC):
@@ -31,7 +32,7 @@ class Distribution(ABC):
 
 
 def variance(dist: Distribution) -> np.ndarray:
-    ...
+    return dist.cov.diagonal(0, 0, 1)[:, None]
 
 
 class ClosedFormDistribution(Distribution):
@@ -44,10 +45,18 @@ class ClosedFormDistribution(Distribution):
         ...
 
 
-@dataclass
 class Gaussian(ClosedFormDistribution):
-    mean: np.ndarray
-    cov: np.ndarray
+    def __init__(self, mean: np.ndarray, cov: np.ndarray):
+        self._mean = mean
+        self._cov = cov
+
+    @property
+    def mean(self) -> np.ndarray:
+        return self._mean
+
+    @property
+    def cov(self) -> np.ndarray:
+        return self._cov
 
     def pdf(self, x: np.ndarray) -> np.ndarray:
         return scipy.stats.multivariate_normal.pdf(x, self.mean, self.cov)
