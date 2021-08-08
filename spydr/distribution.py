@@ -13,7 +13,7 @@
 # limitations under the License
 from abc import ABC, abstractmethod
 
-from jax import numpy as np
+from jax import numpy as jnp
 from jax import scipy
 
 from spydr.util import assert_shape
@@ -22,44 +22,44 @@ from spydr.util import assert_shape
 class Distribution(ABC):
     @property
     @abstractmethod
-    def mean(self) -> np.ndarray:
+    def mean(self) -> jnp.ndarray:
         ...
 
     @property
     @abstractmethod
-    def cov(self) -> np.ndarray:
+    def cov(self) -> jnp.ndarray:
         ...
 
 
-def variance(dist: Distribution) -> np.ndarray:
+def variance(dist: Distribution) -> jnp.ndarray:
     return dist.cov.diagonal(0, 0, 1)[:, None]
 
 
 class ClosedFormDistribution(Distribution):
     @abstractmethod
-    def pdf(self, x: np.ndarray) -> np.ndarray:
+    def pdf(self, x: jnp.ndarray) -> jnp.ndarray:
         ...
 
     @abstractmethod
-    def cdf(self, x: np.ndarray) -> np.ndarray:
+    def cdf(self, x: jnp.ndarray) -> jnp.ndarray:
         ...
 
 
 class Gaussian(ClosedFormDistribution):
-    def __init__(self, mean: np.ndarray, cov: np.ndarray):
+    def __init__(self, mean: jnp.ndarray, cov: jnp.ndarray):
         self._mean = mean
         self._cov = cov
 
     @property
-    def mean(self) -> np.ndarray:
+    def mean(self) -> jnp.ndarray:
         return self._mean
 
     @property
-    def cov(self) -> np.ndarray:
+    def cov(self) -> jnp.ndarray:
         return self._cov
 
-    def pdf(self, x: np.ndarray) -> np.ndarray:
+    def pdf(self, x: jnp.ndarray) -> jnp.ndarray:
         return scipy.stats.multivariate_normal.pdf(x, self.mean, self.cov)
 
-    def cdf(self, x: np.ndarray) -> np.ndarray:
+    def cdf(self, x: jnp.ndarray) -> jnp.ndarray:
         ...

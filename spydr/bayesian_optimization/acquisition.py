@@ -15,35 +15,33 @@ from __future__ import annotations
 
 from typing import Callable, TypeVar
 
-from jax import numpy as np
+from jax import numpy as jnp
 
-from spydr.bayesian_optimization.util import Data
 from spydr.distribution import ClosedFormDistribution, variance, Gaussian
-from spydr.model import ProbabilisticModel, DistributionType_co
+from spydr.model import Data, ProbabilisticModel, DistributionType_co
 from spydr.util import assert_shape
 
 T_co = TypeVar("T_co", covariant=True)
 
 Empiric = Callable[[Data, ProbabilisticModel[DistributionType_co]], T_co]
 
-Acquisition = Callable[[np.ndarray], np.ndarray]
+Acquisition = Callable[[jnp.ndarray], jnp.ndarray]
 
 T = TypeVar("T")
+U = TypeVar("U")
+V = TypeVar("V")
 
 
-def use(
-        f: Callable[[T], tuple[Data, ProbabilisticModel[DistributionType_co]]],
-        emp: Empiric[DistributionType_co, T_co]
-) -> Callable[[T], T_co]:
-    return lambda t: emp(*f(t))
+def use_pair(f: Callable[[T], tuple[U, V]], g: Callable[[U, V], T_co]) -> Callable[[T], T_co]:
+    return lambda t: g(*f(t))
 
 
 def expected_improvement(
-        predict: ProbabilisticModel[ClosedFormDistribution], best: np.ndarray
+        model: ProbabilisticModel[ClosedFormDistribution], best: jnp.ndarray
 ) -> Acquisition:
-    def acquisition(x: np.ndarray) -> np.ndarray:
+    def acquisition(x: jnp.ndarray) -> jnp.ndarray:
         assert_shape(x, [None, 1])
-        marginal = predict(x)
+        marginal = model.marginalise(x)
         res = (best - marginal.mean) * marginal.cdf(best) + variance(marginal) * marginal.pdf(best)
         return assert_shape(res, ())
 
@@ -51,27 +49,27 @@ def expected_improvement(
 
 
 def expected_improvement_by_model(
-        data: Data, predict: ProbabilisticModel[ClosedFormDistribution]
+        data: Data, model: ProbabilisticModel[ClosedFormDistribution]
 ) -> Acquisition:
     qp, obs = data
     assert_shape(qp, (None, 1))
     assert_shape(obs, (len(qp), 1))
-    return expected_improvement(predict, predict(data[0]).mean.min(0))
+    return expected_improvement(model, model.marginalise(data[0]).mean.min(0))
 
 
-def probability_of_feasibility(limit: np.ndarray) -> Empiric[ClosedFormDistribution, Acquisition]:
-    return lambda _, predict: lambda x: predict(x).cdf(limit)
+def probability_of_feasibility(limit: jnp.ndarray) -> Empiric[ClosedFormDistribution, Acquisition]:
+    return lambda _, model: lambda x: model.marginalise(x).cdf(limit)
 
 
-def negative_lower_confidence_bound(beta: np.ndarray) -> Empiric[Gaussian, Acquisition]:
+def negative_lower_confidence_bound(beta: jnp.ndarray) -> Empiric[Gaussian, Acquisition]:
     if beta < 0:
         raise ValueError
 
-    def empiric(_: Data, predict: ProbabilisticModel[Gaussian]) -> Acquisition:
-        def acquisition(x: np.ndarray) -> np.ndarray:
+    def empiric(_: Data, model: ProbabilisticModel[Gaussian]) -> Acquisition:
+        def acquisition(x: jnp.ndarray) -> jnp.ndarray:
             assert_shape(x, (None, 1))
-            marginal = predict(x)
-            res = np.squeeze(marginal.mean) - beta * np.squeeze(variance(marginal))
+            marginal = model.marginalise(x)
+            res = jnp.squeeze(marginal.mean - beta * variance(marginal))
             return assert_shape(res, ())
 
         return acquisition
@@ -80,6 +78,6 @@ def negative_lower_confidence_bound(beta: np.ndarray) -> Empiric[Gaussian, Acqui
 
 
 def expected_constrained_improvement(
-        limit: np.ndarray
+        limit: jnp.ndarray
 ) -> Empiric[Gaussian, Callable[[Acquisition], Acquisition]]:
     ...

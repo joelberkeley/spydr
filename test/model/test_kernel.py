@@ -1,8 +1,8 @@
-import jax.numpy as np
+import jax.numpy as jnp
 from spydr.model.kernel import rbf
-import numpy.testing as npt
+import numpy.testing as jnpt
 
 
 def test_rbf() -> None:
-    actual = rbf(np.array(1.0))(np.array([[1.0]]), np.array([[0.0]]))
-    npt.assert_almost_equal(actual, np.exp(np.array([[-0.5]])))
+    actual = rbf(jnp.array(1.0))(jnp.array([[1.0]]), jnp.array([[0.0]]))
+    jnpt.assert_almost_equal(actual, jnp.exp(jnp.array([[-0.5]])))

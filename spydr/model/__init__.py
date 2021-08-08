@@ -11,12 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-from typing import Callable, TypeVar
+from abc import abstractmethod, ABC
+from typing import TypeVar, Protocol, Callable, Tuple
 
-from jax import numpy as np
+from jax import numpy as jnp
 
 from spydr.distribution import Distribution
+from spydr.optimize import Optimizer
+
+
+Data = Tuple[jnp.ndarray, jnp.ndarray]
+
 
 DistributionType_co = TypeVar("DistributionType_co", bound=Distribution, covariant=True)
 
-ProbabilisticModel = Callable[[np.ndarray], DistributionType_co]
+
+class ProbabilisticModel(Protocol[DistributionType_co]):
+    @abstractmethod
+    def marginalise(self, x: jnp.ndarray) -> DistributionType_co:
+        ...
+
+
+Self = TypeVar("Self")
+
+
+class Trainable(ABC):
+    @abstractmethod
+    def fit(self: Self, optimizer: Callable[[jnp.ndarray], Optimizer], data: Data) -> Self:
+        ...

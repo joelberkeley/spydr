@@ -13,18 +13,30 @@
 # limitations under the License
 from typing import Callable
 
-import jax.numpy as np
+import jax.numpy as jnp
 
 from spydr.util import assert_shape
 
-Kernel = Callable[[np.ndarray, np.ndarray], np.ndarray]
+Kernel = Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
 
 
-def rbf(length_scale: np.ndarray) -> Kernel:
-    def kernel(x: np.ndarray, x_: np.ndarray) -> np.ndarray:
+def rbf(length_scale: jnp.ndarray) -> Kernel:
+    def kernel(x: jnp.ndarray, x_: jnp.ndarray) -> jnp.ndarray:
         assert_shape(x, (None, 1))
         assert_shape(x_, (None, 1))
-        l2_norm = np.sum((x[:, None] - x_[None]) ** 2, axis=2)
-        return assert_shape(np.exp(- l2_norm / (2 * length_scale ** 2)), (len(x), len(x_)))
+        l2_norm = jnp.sum((x[:, None] - x_[None]) ** 2, axis=2)
+        return assert_shape(jnp.exp(- l2_norm / (2 * length_scale ** 2)), (len(x), len(x_)))
+
+    return kernel
+
+
+def matern52(amplitude: jnp.ndarray, length_scale: jnp.ndarray) -> Kernel:
+    def kernel(x: jnp.ndarray, x_: jnp.ndarray) -> jnp.ndarray:
+        assert_shape(x, (None, 1))
+        assert_shape(x_, (None, 1))
+        l2_norm = jnp.sum((x[:, None] - x_[None]) ** 2, axis=2)
+        d = l2_norm / length_scale
+        res = amplitude ** 2 * (1 + jnp.sqrt(5) * d + 5 * d ** 2 / 3) * jnp.exp(- jnp.sqrt(5) * d)
+        return assert_shape(res, (len(x), len(x_)))
 
     return kernel
