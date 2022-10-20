@@ -1,4 +1,4 @@
-# Copyright 2021 Joel Berkeley
+# Copyright 2022 Joel Berkeley
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-from typing import TypeVar, Callable, Tuple
+from typing import Tuple
 
-from jax import numpy as jnp
+import jax.numpy as jnp
 
-from spydr.distribution import Distribution
-
-DistributionType_co = TypeVar("DistributionType_co", bound=Distribution, covariant=True)
-
-ProbabilisticModel = Callable[[jnp.ndarray], DistributionType_co]
+Dataset = Tuple[jnp.ndarray, jnp.ndarray]

@@ -35,8 +35,8 @@ def matern52(amplitude: jnp.ndarray, length_scale: jnp.ndarray) -> Kernel:
         assert_shape(x, (None, 1))
         assert_shape(x_, (None, 1))
         l2_norm = jnp.sum((x[:, None] - x_[None]) ** 2, axis=2)
-        d = l2_norm / length_scale
-        res = amplitude ** 2 * (1 + jnp.sqrt(5) * d + 5 * d ** 2 / 3) * jnp.exp(- jnp.sqrt(5) * d)
+        d = jnp.sqrt(5) * l2_norm / length_scale
+        res = amplitude ** 2 * (1 + d + d ** 2 / 3) * jnp.exp(- d)
         return assert_shape(res, (len(x), len(x_)))
 
     return kernel

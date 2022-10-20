@@ -14,6 +14,7 @@
 from typing import Callable, TypeVar
 
 import jax.numpy as jnp
+from jax import jit
 from jax.scipy.optimize import minimize
 
 T = TypeVar("T")
@@ -23,7 +24,7 @@ Optimizer = Callable[[Callable[[T], jnp.ndarray]], T]
 
 def bfgs(initial_guess: jnp.ndarray) -> Optimizer[jnp.ndarray]:
     def optimizer(f: Callable[[jnp.ndarray], jnp.ndarray]) -> jnp.ndarray:
-        res = minimize(lambda x: -f(x), initial_guess, method="BFGS")#, options={"maxiter": 100000})
+        res = minimize(jit(lambda x: -f(x)), initial_guess, method="BFGS", options={"maxiter": 1000})
 
         if not res.success:
             print("WARN: bfgs failed to converge with error:", res.status)

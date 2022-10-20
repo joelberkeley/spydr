@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 from abc import ABC, abstractmethod
+from typing import final
 
 from jax import numpy as jnp
 from jax import scipy
 
-from spydr.util import assert_shape
+from spydr.util import assert_shape, assert_shapes
 
 
 class Distribution(ABC):
@@ -45,6 +46,7 @@ class ClosedFormDistribution(Distribution):
         ...
 
 
+@final
 class Gaussian(ClosedFormDistribution):
     def __init__(self, mean: jnp.ndarray, cov: jnp.ndarray):
         self._mean = mean
@@ -61,5 +63,7 @@ class Gaussian(ClosedFormDistribution):
     def pdf(self, x: jnp.ndarray) -> jnp.ndarray:
         return scipy.stats.multivariate_normal.pdf(x, self.mean, self.cov)
 
+    # @assert_shapes(lambda _, x: len(x.shape) == 2 and x.shape[-1] == 1)
     def cdf(self, x: jnp.ndarray) -> jnp.ndarray:
-        ...
+        assert x.shape[0] == 1
+        return scipy.stats.norm.cdf(x, jnp.squeeze(self.mean), jnp.squeeze(self.cov))
