@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Callable, Generic, Protocol, TypeVar, Any
+from typing import Callable, TypeVar, Any
 
 import jax.numpy as jnp
 

@@ -24,7 +24,7 @@ Optimizer = Callable[[Callable[[T], jnp.ndarray]], T]
 
 def bfgs(initial_guess: jnp.ndarray) -> Optimizer[jnp.ndarray]:
     def optimizer(f: Callable[[jnp.ndarray], jnp.ndarray]) -> jnp.ndarray:
-        res = minimize(jit(lambda x: -f(x)), initial_guess, method="BFGS", options={"maxiter": 1000})
+        res = minimize((lambda x: -f(x)), initial_guess, method="BFGS", options={"maxiter": 1000})
 
         if not res.success:
             print("WARN: bfgs failed to converge with error:", res.status)

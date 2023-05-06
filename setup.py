@@ -26,10 +26,10 @@ setup(
     packages=find_packages(include=["spydr*"]),
     package_data={"spydr": ["py.typed"]},
     classifiers=[
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
-    python_requires="~=3.8",
+    python_requires="~=3.11",
     install_requires=["jax~=0.2", "jaxlib"],
 )

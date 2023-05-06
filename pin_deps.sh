@@ -2,10 +2,10 @@
 
 set -e
 
-VENV_DIR=$(mktemp -d -p $(pwd))
+VENV_DIR=$(mktemp -d)
 
 pin_deps () {
-  python3.8 -m venv $VENV_DIR/$1
+  python3.11 -m venv $VENV_DIR/$1
   source $VENV_DIR/$1/bin/activate
   pip install --upgrade pip
   if [ "$2" = true ]; then

@@ -13,12 +13,11 @@
 # limitations under the License
 from __future__ import annotations
 
-from collections import Callable
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeVar, final
+from typing import final
 
 from jax.scipy.linalg import solve_triangular
-from jax import jit
 from jax import numpy as jnp
 
 from spydr.distribution import Gaussian
@@ -37,7 +36,13 @@ class GaussianProcess:
     kernel: Kernel
 
 
-def _posterior(prior: GaussianProcess, noise: jnp.ndarray, training_data: Dataset) -> GaussianProcess:
+def concat(this: Dataset, that: Dataset) -> Dataset:
+    return tuple(map(jnp.concatenate, zip(this, that)))
+
+
+def _posterior(
+        prior: GaussianProcess, noise: jnp.ndarray, training_data: Dataset
+) -> GaussianProcess:
     x_train, y_train = training_data
     assert_shape(x_train, (None, 1))
     assert_shape(y_train, (len(x_train),))
@@ -78,6 +83,7 @@ def _log_marginal_likelihood(
 @final
 @dataclass
 class ConjugateGPRegression:
+    data: Dataset
     mk_gp: Callable[[jnp.ndarray], GaussianProcess]
     gp_params: jnp.ndarray
     noise: jnp.ndarray
@@ -87,12 +93,14 @@ class ConjugateGPRegression:
 
 
 def predict_latent(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
-    gp = gpr.mk_gp(gpr.gp_params)
+    x, y = gpr.data
+    gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, (x, jnp.squeeze(y, axis=-1)))
     return lambda x: Gaussian(gp.mean_function(x)[..., None], gp.kernel(x, x)[..., None])
 
 
 def predict_observations(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
-    gp = gpr.mk_gp(gpr.gp_params)
+    x, y = gpr.data
+    gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, (x, jnp.squeeze(y, axis=-1)))
     return lambda x: Gaussian(
         gp.mean_function(x)[..., None],
         gp.kernel(x, x)[..., None] + jnp.diag(jnp.broadcast_to(gpr.noise, len(x))[..., None])
@@ -104,7 +112,6 @@ def fit(
         optimizer: Callable[[jnp.ndarray], Optimizer[jnp.ndarray]],
         data: Dataset
 ) -> ConjugateGPRegression:
-    @jit
     def objective(params: jnp.ndarray) -> jnp.ndarray:
         (x, y) = data
         return _log_marginal_likelihood(
@@ -114,8 +121,4 @@ def fit(
     initial_params = jnp.concatenate([gpr.noise[None], gpr.gp_params])
     new_params = optimizer(initial_params)(objective)
 
-    def mk_posterior(gp_params: jnp.ndarray) -> GaussianProcess:
-        (x, y) = data
-        return _posterior(gpr.mk_gp(gp_params), new_params[0], (x, jnp.squeeze(y, axis=-1)))
-
-    return ConjugateGPRegression(mk_posterior, new_params[1:], new_params[0])
+    return ConjugateGPRegression(concat(data, gpr.data), gpr.mk_gp, new_params[1:], new_params[0])

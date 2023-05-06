@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-from typing import Tuple
+from typing import NamedTuple
 
 import jax.numpy as jnp
 
-Dataset = Tuple[jnp.ndarray, jnp.ndarray]
+
+class Dataset(NamedTuple):
+    features: jnp.ndarray
+    targets: jnp.ndarray

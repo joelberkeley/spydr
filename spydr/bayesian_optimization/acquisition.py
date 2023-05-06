@@ -13,20 +13,23 @@
 # limitations under the License
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+from dataclasses import dataclass
+from typing import Callable, TypeVar, Generic
 
 import jax.numpy as jnp
-from jax import jit
 
-from spydr.bayesian_optimization.binary import Binary
 from spydr.distribution import ClosedFormDistribution, variance, Gaussian
 from spydr.model import ProbabilisticModel, DistributionType_co
 from spydr.data import Dataset
+from spydr.reader import Reader
 from spydr.util import assert_shape
 
-T_co = TypeVar("T_co", covariant=True)
 
-Empiric = Binary[Dataset, ProbabilisticModel[DistributionType_co], T_co]
+@dataclass(frozen=True, eq=False)
+class DataAndModel(Generic[DistributionType_co]):
+    data: Dataset
+    model: ProbabilisticModel[DistributionType_co]
+
 
 Acquisition = Callable[[jnp.ndarray], jnp.ndarray]
 
@@ -38,7 +41,6 @@ V = TypeVar("V")
 def expected_improvement(
         predict: ProbabilisticModel[ClosedFormDistribution], best: jnp.ndarray
 ) -> Acquisition:
-    # @jit
     def acquisition(x: jnp.ndarray) -> jnp.ndarray:
         assert_shape(x, [None, 1])
         marginal = predict(x)
@@ -50,46 +52,44 @@ def expected_improvement(
     return acquisition
 
 
-def expected_improvement_by_model() -> Empiric[ClosedFormDistribution, Acquisition]:
-    def binary(
-            data: Dataset, predict: ProbabilisticModel[ClosedFormDistribution]
-    ) -> Acquisition:
-        qp, obs = data
+def expected_improvement_by_model() -> Reader[DataAndModel[ClosedFormDistribution], Acquisition]:
+    def binary(env: DataAndModel[ClosedFormDistribution]) -> Acquisition:
+        qp, obs = env.data
         assert_shape(qp, (None, 1))
         assert_shape(obs, (len(qp), 1))
-        return expected_improvement(predict, predict(qp).mean.min(0))
+        return expected_improvement(env.model, env.model(qp).mean.min(0))
 
-    return Binary(binary)
-
-
-def probability_of_feasibility(limit: jnp.ndarray) -> Empiric[ClosedFormDistribution, Acquisition]:
-    return Binary(lambda _, predict: jit(lambda x: jnp.squeeze(predict(x).cdf(limit))))
+    return Reader(binary)
 
 
-def negative_lower_confidence_bound(beta: jnp.ndarray) -> Empiric[Gaussian, Acquisition]:
+def probability_of_feasibility(
+        limit: jnp.ndarray
+) -> Reader[DataAndModel[ClosedFormDistribution], Acquisition]:
+    return Reader(lambda env: lambda x: jnp.squeeze(env.model(x).cdf(limit)))
+
+
+def negative_lower_confidence_bound(
+        beta: jnp.ndarray
+) -> Reader[DataAndModel[Gaussian], Acquisition]:
     if beta < 0:
         raise ValueError
 
-    def empiric(_: Dataset, predict: ProbabilisticModel[Gaussian]) -> Acquisition:
-        @jit
+    def empiric(env: DataAndModel[Gaussian]) -> Acquisition:
         def acquisition(x: jnp.ndarray) -> jnp.ndarray:
             assert_shape(x, (None, 1))
-            # marginal = predict(x)
-            # res = jnp.squeeze(marginal.mean - beta * variance(marginal))
-            return assert_shape(jnp.squeeze(x ** 2), ())
+            marginal = env.model(x)
+            return - assert_shape(jnp.squeeze(marginal.mean - beta * variance(marginal)), ())
 
         return acquisition
 
-    return Binary(empiric)
+    return Reader(empiric)
 
 
 def expected_constrained_improvement(
         limit: jnp.ndarray
-) -> Empiric[Gaussian, Callable[[Acquisition], Acquisition]]:
-    def empiric(
-            data: Dataset, predict: ProbabilisticModel[Gaussian]
-    ) -> Callable[[Acquisition], Acquisition]:
-        query_points, observations = data
+) -> Reader[DataAndModel[Gaussian], Callable[[Acquisition], Acquisition]]:
+    def empiric(env: DataAndModel[Gaussian]) -> Callable[[Acquisition], Acquisition]:
+        query_points, observations = env.data
 
         def inner(constraint_fn: Acquisition) -> Acquisition:
             # todo we don't support broadcasting dimensions on acquisition fns yet
@@ -102,9 +102,9 @@ def expected_constrained_improvement(
                 return constraint_fn
 
             feasible_query_points = query_points[is_feasible]
-            eta = jnp.min(predict(feasible_query_points).mean, axis=0)
-            ei = expected_improvement(predict, eta)
+            eta = jnp.min(env.model(feasible_query_points).mean, axis=0)
+            ei = expected_improvement(env.model, eta)
 
-            return jit(lambda at: ei(at) * constraint_fn(at))  # type: ignore
+            return lambda at: ei(at) * constraint_fn(at)  # type: ignore
         return inner
-    return Binary(empiric)
+    return Reader(empiric)

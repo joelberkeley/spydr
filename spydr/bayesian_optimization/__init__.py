@@ -18,6 +18,7 @@ from typing import Callable, TypeVar
 
 import jax.numpy as jnp
 from spydr.bayesian_optimization.binary import Binary
+from spydr.reader import Reader
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -25,10 +26,10 @@ V = TypeVar("V")
 
 
 def loop(
-        tactic: Binary[T, U, jnp.ndarray],
-        observer: Callable[[jnp.ndarray, T, U], tuple[T, U]],
-        initial: tuple[T, U],
-) -> Iterator[tuple[T, U]]:
+        tactic: Reader[T, jnp.ndarray],
+        observer: Callable[[jnp.ndarray, T], T],
+        initial: T,
+) -> Iterator[T]:
     yield initial
-    current = observer(tactic(*initial), *initial)
-    yield from loop(tactic, observer, current)
+    next_ = observer(tactic.run(initial), initial)
+    yield from loop(tactic, observer, next_)
