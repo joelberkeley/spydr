@@ -30,10 +30,9 @@ def gp(params: jnp.ndarray) -> GaussianProcess:
     return GaussianProcess(zero, rbf(params[0]))
 
 
-gpr = ConjugateGPRegression(
-    Dataset(jnp.empty([0, 1]), jnp.empty([0, 1])), gp, jnp.array([1.0]), jnp.array(0.2)
-)
-gpr = fit(gpr, bfgs, data)
+gpr = fit(ConjugateGPRegression(
+    Dataset.empty([1], [1]), gp, jnp.array([1.0]), jnp.array(0.2)
+), bfgs, data)
 
 acquisition = (
     expected_improvement_by_model()
@@ -42,9 +41,9 @@ acquisition = (
 )
 
 
-def observer(points: jnp.ndarray, env: Env) -> Env:
+def observer(points: jnp.ndarray, env: Env[ConjugateGPRegression]) -> Env[ConjugateGPRegression]:
     new_data = Dataset(points, objective(points))
-    return Env(env.data.concat(new_data), fit(env.model, bfgs, new_data))
+    return Env(env.data.op(new_data), fit(env.model, bfgs, new_data))
 
 
 points = loop(acquisition, observer, Env(data, gpr))

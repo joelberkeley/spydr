@@ -20,8 +20,8 @@ def test_gp() -> None:
     def loss(gpr_: ConjugateGPRegression, x_: jnp.ndarray) -> jnp.ndarray:
         return jnp.sum(predict_latent(gpr_)(x_).mean - y(x_)) ** 2
 
-    gpr = ConjugateGPRegression(gp, jnp.array([1.0]), jnp.array(0.1))
+    gpr = ConjugateGPRegression(Dataset.empty([1], [1]), gp, jnp.array([1.0]), jnp.array(0.1))
     x_train = jnp.arange(20.0)[:, None] / 10 - 1
     x_test = x_train - 0.5
-    gpr_trained = fit(gpr, bfgs, (x_train, y(x_train)))
+    gpr_trained = fit(gpr, bfgs, Dataset(x_train, y(x_train)))
     jnpt.assert_array_less(loss(gpr_trained, x_test), loss(gpr, x_test))

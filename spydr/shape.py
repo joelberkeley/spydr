@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import functools
-from typing import Callable, TypeVar, Any
+from typing import Callable, TypeVar, Any, TypeAlias
 
 import jax.numpy as jnp
+
+
+StaticShape: TypeAlias = list[int] | tuple[int, ...]
 
 
 def assert_shape(x: jnp.ndarray, shape: list[int | None] | tuple[int | None, ...]) -> jnp.ndarray:
@@ -15,7 +18,7 @@ def assert_shape(x: jnp.ndarray, shape: list[int | None] | tuple[int | None, ...
     return x
 
 
-C = TypeVar("C", bound=Callable)
+C = TypeVar("C", bound=Callable[..., object])
 
 
 def assert_shapes(checks: Callable[[Any, ...], bool]) -> Callable[[C], C]:

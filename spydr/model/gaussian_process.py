@@ -39,7 +39,7 @@ class GaussianProcess:
 def _posterior(
         prior: GaussianProcess, noise: jnp.ndarray, training_data: Dataset
 ) -> GaussianProcess:
-    x_train, y_train = training_data
+    x_train, y_train = training_data.as_tuple()
     assert_shape(x_train, (None, 1))
     assert_shape(y_train, (len(x_train),))
 
@@ -67,7 +67,7 @@ def _posterior(
 def _log_marginal_likelihood(
         gp: GaussianProcess, noise: jnp.ndarray, data: Dataset
 ) -> jnp.ndarray:
-    x, y = data
+    x, y = data.as_tuple()
     assert_shape(x, (None, 1))
     assert_shape(y, (len(x),))
     l = jnp.linalg.cholesky(gp.kernel(x, x) + noise * jnp.eye(len(x)))
@@ -89,17 +89,17 @@ class ConjugateGPRegression:
 
 
 def predict_latent(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
-    x, y = gpr.data
+    x, y = gpr.data.as_tuple()
     gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, Dataset(x, jnp.squeeze(y, axis=-1)))
     return lambda x: Gaussian(gp.mean_function(x)[..., None], gp.kernel(x, x)[..., None])
 
 
 def predict_observations(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
-    x, y = gpr.data
+    x, y = gpr.data.as_tuple()
     gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, Dataset(x, jnp.squeeze(y, axis=-1)))
     return lambda x: Gaussian(
         gp.mean_function(x)[..., None],
-        gp.kernel(x, x)[..., None] + jnp.diag(jnp.broadcast_to(gpr.noise, len(x))[..., None])
+        gp.kernel(x, x)[..., None] + jnp.diag(jnp.broadcast_to(gpr.noise, [len(x)])[..., None])
     )
 
 
@@ -109,7 +109,7 @@ def fit(
         data: Dataset
 ) -> ConjugateGPRegression:
     def objective(params: jnp.ndarray) -> jnp.ndarray:
-        (x, y) = data
+        x, y = data.as_tuple()
         return _log_marginal_likelihood(
             gpr.mk_gp(params[1:]), params[0], Dataset(x, jnp.squeeze(y, axis=-1))
         )
@@ -117,4 +117,4 @@ def fit(
     initial_params = jnp.concatenate([gpr.noise[None], gpr.gp_params])
     new_params = optimizer(initial_params)(objective)
 
-    return ConjugateGPRegression(gpr.data.concat(data), gpr.mk_gp, new_params[1:], new_params[0])
+    return ConjugateGPRegression(gpr.data.op(data), gpr.mk_gp, new_params[1:], new_params[0])

@@ -20,7 +20,7 @@ import jax.numpy as jnp
 
 from spydr.bayesian_optimization.model import Env
 from spydr.distribution import ClosedFormDistribution, variance, Gaussian
-from spydr.model import ProbabilisticModel, DistributionType_co
+from spydr.model import ProbabilisticModel
 from spydr.types.reader import Reader
 from spydr.shape import assert_shape
 
@@ -48,7 +48,7 @@ def expected_improvement(
 
 def expected_improvement_by_model() -> Reader[Env[ProbabilisticModel[ClosedFormDistribution]], Acquisition]:
     def binary(env: Env[ProbabilisticModel[ClosedFormDistribution]]) -> Acquisition:
-        qp, obs = env.data
+        qp, obs = env.data.as_tuple()
         assert_shape(qp, (None, 1))
         assert_shape(obs, (len(qp), 1))
         return expected_improvement(env.model, env.model(qp).mean.min(0))
@@ -59,7 +59,7 @@ def expected_improvement_by_model() -> Reader[Env[ProbabilisticModel[ClosedFormD
 def probability_of_feasibility(
         limit: jnp.ndarray
 ) -> Reader[Env[ProbabilisticModel[ClosedFormDistribution]], Acquisition]:
-    return Reader(lambda env: lambda x: jnp.squeeze(env.model(assert_shape(x, [1, 2])).cdf(limit)))
+    return Reader(lambda env: lambda x: jnp.squeeze(env.model(x).cdf(limit)))
 
 
 def negative_lower_confidence_bound(
@@ -70,9 +70,8 @@ def negative_lower_confidence_bound(
 
     def empiric(env: Env[ProbabilisticModel[Gaussian]]) -> Acquisition:
         def acquisition(x: jnp.ndarray) -> jnp.ndarray:
-            assert_shape(x, (None, 1))
             marginal = env.model(x)
-            return - assert_shape(jnp.squeeze(marginal.mean - beta * variance(marginal)), ())
+            return - jnp.squeeze(marginal.mean - beta * variance(marginal))
 
         return acquisition
 
@@ -83,10 +82,10 @@ def expected_constrained_improvement(
         limit: jnp.ndarray
 ) -> Reader[Env[ProbabilisticModel[Gaussian]], Callable[[Acquisition], Acquisition]]:
     def empiric(env: Env[ProbabilisticModel[Gaussian]]) -> Callable[[Acquisition], Acquisition]:
-        query_points, observations = env.data
+        query_points, observations = env.data.as_tuple()
 
         def inner(constraint_fn: Acquisition) -> Acquisition:
-            pof = assert_shape(vmap(constraint_fn)(query_points[:, None, ...]), [None, 1])
+            pof = vmap(constraint_fn)(query_points[:, None, ...])
             is_feasible = pof >= limit
 
             if not jnp.any(is_feasible):
@@ -96,6 +95,6 @@ def expected_constrained_improvement(
             eta = jnp.min(env.model(feasible_query_points).mean, axis=0)
             ei = expected_improvement(env.model, eta)
 
-            return lambda at: assert_shape(ei(at) * constraint_fn(at), [])  # type: ignore
+            return lambda at: ei(at) * constraint_fn(at)
         return inner
     return Reader(empiric)

@@ -16,7 +16,7 @@ class Reader(Generic[T, U]):
     def map(self, f: Callable[[U], V]) -> Reader[T, V]:
         return Reader(lambda t: f(self.run(t)))
 
-    def contramap(self, f: Callable[[S], T]) -> Reader[S, V]:
+    def contramap(self, f: Callable[[S], T]) -> Reader[S, U]:
         return Reader(lambda s: self.run(f(s)))
 
     def apply(self, other: Reader[T, Callable[[U], V]]) -> Reader[T, V]:
