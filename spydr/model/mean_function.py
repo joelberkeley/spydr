@@ -15,7 +15,7 @@ from typing import Callable
 
 from jax import numpy as jnp
 
-from spydr.util import assert_shape
+from spydr.shape import assert_shape
 
 MeanFunction = Callable[[jnp.ndarray], jnp.ndarray]
 

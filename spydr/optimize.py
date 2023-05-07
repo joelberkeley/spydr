@@ -14,7 +14,6 @@
 from typing import Callable, TypeVar
 
 import jax.numpy as jnp
-from jax import jit
 from jax.scipy.optimize import minimize
 
 T = TypeVar("T")

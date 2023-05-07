@@ -7,7 +7,6 @@ import jax.numpy as jnp
 
 
 def assert_shape(x: jnp.ndarray, shape: list[int | None] | tuple[int | None, ...]) -> jnp.ndarray:
-    return x
     shape = tuple(shape)
     assert all(dim is None or dim > 0 for dim in shape)
     assert len(x.shape) == len(shape), f"expected {shape}, got {x.shape}"

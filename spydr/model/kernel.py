@@ -15,7 +15,7 @@ from typing import Callable
 
 import jax.numpy as jnp
 
-from spydr.util import assert_shape
+from spydr.shape import assert_shape
 
 Kernel = Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]
 

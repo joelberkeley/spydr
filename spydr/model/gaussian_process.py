@@ -26,11 +26,11 @@ from spydr.model import ProbabilisticModel
 from spydr.model.kernel import Kernel
 from spydr.model.mean_function import MeanFunction
 from spydr.optimize import Optimizer
-from spydr.util import assert_shape
+from spydr.shape import assert_shape
 
 
 @final
-@dataclass
+@dataclass(frozen=True, eq=False)
 class GaussianProcess:
     mean_function: MeanFunction
     kernel: Kernel
@@ -77,7 +77,7 @@ def _log_marginal_likelihood(
 
 
 @final
-@dataclass
+@dataclass(frozen=True, eq=False)
 class ConjugateGPRegression:
     data: Dataset
     mk_gp: Callable[[jnp.ndarray], GaussianProcess]
@@ -90,13 +90,13 @@ class ConjugateGPRegression:
 
 def predict_latent(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
     x, y = gpr.data
-    gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, (x, jnp.squeeze(y, axis=-1)))
+    gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, Dataset(x, jnp.squeeze(y, axis=-1)))
     return lambda x: Gaussian(gp.mean_function(x)[..., None], gp.kernel(x, x)[..., None])
 
 
 def predict_observations(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
     x, y = gpr.data
-    gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, (x, jnp.squeeze(y, axis=-1)))
+    gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, Dataset(x, jnp.squeeze(y, axis=-1)))
     return lambda x: Gaussian(
         gp.mean_function(x)[..., None],
         gp.kernel(x, x)[..., None] + jnp.diag(jnp.broadcast_to(gpr.noise, len(x))[..., None])
@@ -111,7 +111,7 @@ def fit(
     def objective(params: jnp.ndarray) -> jnp.ndarray:
         (x, y) = data
         return _log_marginal_likelihood(
-            gpr.mk_gp(params[1:]), params[0], (x, jnp.squeeze(y, axis=-1))
+            gpr.mk_gp(params[1:]), params[0], Dataset(x, jnp.squeeze(y, axis=-1))
         )
 
     initial_params = jnp.concatenate([gpr.noise[None], gpr.gp_params])
