@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
+from __future__ import annotations
 from typing import NamedTuple
 
 import jax.numpy as jnp
@@ -19,3 +20,9 @@ import jax.numpy as jnp
 class Dataset(NamedTuple):
     features: jnp.ndarray
     targets: jnp.ndarray
+
+    def concat(self, other: Dataset) -> Dataset:
+        return Dataset(
+            jnp.concatenate([self.features, other.features]),
+            jnp.concatenate([self.targets, other.targets])
+        )

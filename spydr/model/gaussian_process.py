@@ -36,10 +36,6 @@ class GaussianProcess:
     kernel: Kernel
 
 
-def concat(this: Dataset, that: Dataset) -> Dataset:
-    return tuple(map(jnp.concatenate, zip(this, that)))
-
-
 def _posterior(
         prior: GaussianProcess, noise: jnp.ndarray, training_data: Dataset
 ) -> GaussianProcess:
@@ -121,4 +117,4 @@ def fit(
     initial_params = jnp.concatenate([gpr.noise[None], gpr.gp_params])
     new_params = optimizer(initial_params)(objective)
 
-    return ConjugateGPRegression(concat(data, gpr.data), gpr.mk_gp, new_params[1:], new_params[0])
+    return ConjugateGPRegression(gpr.data.concat(data), gpr.mk_gp, new_params[1:], new_params[0])

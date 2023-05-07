@@ -17,6 +17,8 @@ from typing import final
 from jax import numpy as jnp
 from jax import scipy
 
+from spydr.util import assert_shape
+
 
 class Distribution(ABC):
     @property

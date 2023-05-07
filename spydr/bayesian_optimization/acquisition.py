@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, TypeVar, Generic
 
+from jax import vmap
 import jax.numpy as jnp
 
 from spydr.distribution import ClosedFormDistribution, variance, Gaussian
@@ -65,7 +66,7 @@ def expected_improvement_by_model() -> Reader[DataAndModel[ClosedFormDistributio
 def probability_of_feasibility(
         limit: jnp.ndarray
 ) -> Reader[DataAndModel[ClosedFormDistribution], Acquisition]:
-    return Reader(lambda env: lambda x: jnp.squeeze(env.model(x).cdf(limit)))
+    return Reader(lambda env: lambda x: jnp.squeeze(env.model(assert_shape(x, [1, 2])).cdf(limit)))
 
 
 def negative_lower_confidence_bound(
@@ -92,11 +93,8 @@ def expected_constrained_improvement(
         query_points, observations = env.data
 
         def inner(constraint_fn: Acquisition) -> Acquisition:
-            # todo we don't support broadcasting dimensions on acquisition fns yet
-            #
-            # ^^^ don't need to - can use vmap/pmap
-            pof = constraint_fn(query_points[:, None, ...])
-            is_feasible = jnp.squeeze(pof >= limit, axis=-1)
+            pof = assert_shape(vmap(constraint_fn)(query_points[:, None, ...]), [None, 1])
+            is_feasible = pof >= limit
 
             if not jnp.any(is_feasible):
                 return constraint_fn
@@ -105,6 +103,6 @@ def expected_constrained_improvement(
             eta = jnp.min(env.model(feasible_query_points).mean, axis=0)
             ei = expected_improvement(env.model, eta)
 
-            return lambda at: ei(at) * constraint_fn(at)  # type: ignore
+            return lambda at: assert_shape(ei(at) * constraint_fn(at), [])  # type: ignore
         return inner
     return Reader(empiric)
