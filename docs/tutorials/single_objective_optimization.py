@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import chex
 import jax.numpy as jnp
 
 from spydr.bayesian_optimization.loop import loop
@@ -12,26 +13,27 @@ from spydr.data import Dataset
 from spydr.model.gaussian_process import GaussianProcess, ConjugateGPRegression, fit, predict_latent
 from spydr.model.kernel import rbf
 from spydr.model.mean_function import zero
+from spydr.objectives import unit_branin
 from spydr.optimize import bfgs
 from spydr.types.stream import take
 
+# chex.disable_asserts()
+x = y = jnp.linspace(-2, 2, 5)
+xx, yy = jnp.meshgrid(x, y)
+query_points = jnp.vstack((xx.flatten(), yy.flatten())).T
+data = Dataset(query_points, unit_branin(query_points))
+chex.assert_shape(query_points, [25, 2])
 
-def objective(x: jnp.ndarray) -> jnp.ndarray:
-    return (x - 1) ** 2
 
-
-query_points = jnp.array(
-    [[-1.0], [-0.9], [-0.6], [0.0], [0.1], [0.5], [0.9], [1.1], [1.2], [1.4], [1.7], [2.0], [2.3]]
-)
-data = Dataset(query_points, objective(query_points))
+feature_shape = [2]
 
 
 def gp(params: jnp.ndarray) -> GaussianProcess:
-    return GaussianProcess(zero, rbf(params[0]))
+    return GaussianProcess(zero, rbf(params[0]), feature_shape=feature_shape, target_shape=[])
 
 
 gpr = fit(ConjugateGPRegression(
-    Dataset.empty([1], [1]), gp, jnp.array([1.0]), jnp.array(0.2)
+    Dataset.empty(feature_shape, [1]), gp, jnp.array([1.0]), jnp.array(0.2)
 ), bfgs, data)
 
 acquisition = (
@@ -42,7 +44,7 @@ acquisition = (
 
 
 def observer(points: jnp.ndarray, env: Env[ConjugateGPRegression]) -> Env[ConjugateGPRegression]:
-    new_data = Dataset(points, objective(points))
+    new_data = Dataset(points, unit_branin(points))
     return Env(env.data.op(new_data), fit(env.model, bfgs, new_data))
 
 

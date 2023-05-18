@@ -28,6 +28,9 @@ class Dataset(Semigroup):
     features: jnp.ndarray
     targets: jnp.ndarray
 
+    def __post_init__(self) -> None:
+        assert len(self.targets) == len(self.features)
+
     def as_tuple(self) -> tuple[jnp.ndarray, jnp.ndarray]:
         return self.features, self.targets
 

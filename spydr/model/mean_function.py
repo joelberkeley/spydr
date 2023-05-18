@@ -11,17 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-from typing import Callable
+import functools
+from collections.abc import Callable
 
+import chex
 from jax import numpy as jnp
 
-from spydr.shape import assert_shape
+from spydr.shape import Shape
 
 MeanFunction = Callable[[jnp.ndarray], jnp.ndarray]
 
 
+def mean_function_shapes(feature_shape: Shape, mean_function: MeanFunction) -> MeanFunction:
+    @functools.wraps(mean_function)
+    def checked_mean_function(features: jnp.ndarray) -> jnp.ndarray:
+        chex.assert_shape(features, [None] + feature_shape)
+        targets = mean_function(features)
+        chex.assert_shape(targets, [len(features)])
+        return targets
+
+    return checked_mean_function
+
+
 def zero(x: jnp.ndarray) -> jnp.ndarray:
-    assert_shape(x, (None, 1))
-    res = jnp.zeros([len(x)])
-    assert_shape(res, (len(x),))
-    return res
+    return jnp.zeros([len(x)])

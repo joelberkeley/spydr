@@ -13,22 +13,19 @@ from spydr.data import Dataset
 from spydr.model.gaussian_process import ConjugateGPRegression, fit, GaussianProcess, predict_latent
 from spydr.model.kernel import rbf
 from spydr.model.mean_function import zero
+from spydr.objectives import unit_branin
 from spydr.optimize import bfgs
 from spydr.types.stream import take
-
-
-def objective(x: jnp.ndarray) -> jnp.ndarray:
-    return (x - 1) ** 2
 
 
 def constraint(x: jnp.ndarray) -> jnp.ndarray:
     return (jnp.cos(x) * jnp.sin(x)) ** 2
 
 
-query_points = jnp.array(
-    [[-1.0], [-0.9], [-0.6], [0.0], [0.1], [0.5], [0.9], [1.1], [1.2], [1.4], [1.7], [2.0], [2.3]]
-)
-data = Dataset(query_points, objective(query_points))
+x = y = jnp.linspace(-2, 2, 4)
+xx, yy = jnp.meshgrid(x, y)
+query_points = jnp.vstack((xx.flatten(), yy.flatten())).T
+data = Dataset(query_points, unit_branin(query_points))
 
 
 def gp(params: jnp.ndarray) -> GaussianProcess:
@@ -69,7 +66,7 @@ acquisition_ = pof.apply(eci).map(multistart_bfgs(query_points[0], query_points[
 
 
 def observer_(points: jnp.ndarray, env: Labelled) -> Labelled:
-    new_obj_data = Dataset(points, objective(points))
+    new_obj_data = Dataset(points, unit_branin(points))
     new_con_data = Dataset(points, constraint(points))
     return Labelled(
         objective=Env(

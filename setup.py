@@ -31,5 +31,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires="~=3.11",
-    install_requires=["jax~=0.2", "jaxlib"],
+    install_requires=["jax~=0.2", "jaxlib", "chex"],
 )
