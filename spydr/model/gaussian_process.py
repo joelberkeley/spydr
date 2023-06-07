@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import final, Final
 
 import chex
+import jax
 from jax.scipy.linalg import solve_triangular
 from jax import numpy as jnp
 
@@ -41,12 +42,10 @@ class GaussianProcess:
             kernel: Kernel,
             *,
             feature_shape: Shape,
-            target_shape: Shape,
     ):
         self.mean_function: Final = mean_function_shapes(feature_shape, mean_function)
         self.kernel: Final = kernel_shapes(feature_shape, kernel)
         self.feature_shape: Final = feature_shape
-        self.target_shape: Final = target_shape
 
 
 def _posterior(
@@ -57,7 +56,7 @@ def _posterior(
 
     x_train, y_train = training_data.as_tuple()
 
-    l = jnp.linalg.cholesky(prior.kernel(x_train, x_train) + noise * jnp.eye(len(x_train)))
+    l = jnp.linalg.cholesky(prior.kernel(x_train, x_train) + (noise + 1e-6) * jnp.eye(len(x_train)))
     alpha = solve_triangular(l.transpose(), solve_triangular(l, y_train, lower=True))
 
     def posterior_meanf(x: jnp.ndarray) -> jnp.ndarray:
@@ -74,7 +73,6 @@ def _posterior(
         posterior_meanf,
         posterior_kernel,
         feature_shape=prior.feature_shape,
-        target_shape=prior.target_shape,
     )
 
 
@@ -83,7 +81,7 @@ def _log_marginal_likelihood(
 ) -> jnp.ndarray:
     chex.assert_rank(noise, 0)
     x, y = data.as_tuple()
-    l = jnp.linalg.cholesky(gp.kernel(x, x) + noise * jnp.eye(len(x)))
+    l = jnp.linalg.cholesky(gp.kernel(x, x) + (noise + 1e-6) * jnp.eye(len(x)))
     alpha = solve_triangular(l.transpose(), solve_triangular(l, y, lower=True))
     lml = (
         - (y.transpose() @ alpha).reshape([]) / 2
@@ -102,10 +100,9 @@ class ConjugateGPRegression:
     noise: jnp.ndarray
 
     def __post_init__(self) -> None:
+        gp = self.mk_gp(self.gp_params)
+        chex.assert_shape(self.data.features, [None] + gp.feature_shape)
         chex.assert_rank(self.noise, 0)
-
-    def __repr__(self) -> str:
-        return f"{self.gp_params}, {self.noise}"
 
 
 def predict_latent(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
@@ -114,7 +111,10 @@ def predict_latent(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gaussian]:
 
     def prob_model(x: jnp.ndarray) -> Gaussian:
         chex.assert_shape(x, [None] + list(gp.feature_shape))
-        return Gaussian(gp.mean_function(x)[..., None], gp.kernel(x, x)[..., None])
+        return Gaussian(
+            gp.mean_function(x)[..., None],
+            gp.kernel(x, x)[..., None] + jnp.diag(jnp.broadcast_to(1e-6, [len(x)])[..., None])
+        )
 
     return prob_model
 
@@ -123,12 +123,10 @@ def predict_observations(gpr: ConjugateGPRegression) -> ProbabilisticModel[Gauss
     x, y = gpr.data.as_tuple()
     gp = _posterior(gpr.mk_gp(gpr.gp_params), gpr.noise, Dataset(x, jnp.squeeze(y, axis=-1)))
 
-    def prob_model(x: jnp.ndarray) -> Gaussian:
-        chex.assert_shape(x, [None] + list(gp.feature_shape))
-        return Gaussian(
-            gp.mean_function(x)[..., None],
-            gp.kernel(x, x)[..., None] + jnp.diag(jnp.broadcast_to(gpr.noise, [len(x)])[..., None])
-        )
+    def prob_model(x_: jnp.ndarray) -> Gaussian:
+        chex.assert_shape(x_, [None] + list(gp.feature_shape))
+        noise_diag = jnp.diag(jnp.broadcast_to(gpr.noise + 1e-6, [len(x_)])[..., None])
+        return Gaussian(gp.mean_function(x_)[..., None], gp.kernel(x_, x_)[..., None] + noise_diag)
 
     return prob_model
 

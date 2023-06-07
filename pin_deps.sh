@@ -17,6 +17,7 @@ pin_deps () {
 }
 
 pin_deps deps/format false
+pin_deps deps/docs true
 pin_deps deps/types true
 pin_deps deps/test true
 

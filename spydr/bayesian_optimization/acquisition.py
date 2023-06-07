@@ -23,6 +23,7 @@ import jax.numpy as jnp
 from spydr.bayesian_optimization.model import Env
 from spydr.distribution import ClosedFormDistribution, variance, Gaussian
 from spydr.model import ProbabilisticModel
+from spydr.shape import Shape
 from spydr.types.reader import Reader
 
 
@@ -33,20 +34,22 @@ U = TypeVar("U")
 V = TypeVar("V")
 
 
-def assert_acquisition_shapes(acquisition: Acquisition) -> Acquisition:
+def acquisition_shapes(
+        acquisition: Acquisition, *, batch_size: int, feature_shape: Shape
+) -> Acquisition:
     @functools.wraps(acquisition)
-    def _acquisition(x: jnp.array) -> jnp.ndarray:
+    def checked_acquisition(x: jnp.array) -> jnp.ndarray:
+        chex.assert_shape(x, [batch_size] + list(feature_shape))
         res = acquisition(x)
         chex.assert_rank(res, 0)
         return res
 
-    return _acquisition
+    return checked_acquisition
 
 
 def expected_improvement(
         predict: ProbabilisticModel[ClosedFormDistribution], best: jnp.ndarray
 ) -> Acquisition:
-    @assert_acquisition_shapes
     def acquisition(x: jnp.ndarray) -> jnp.ndarray:
         marginal = predict(x)
         return jnp.squeeze(
@@ -69,9 +72,7 @@ def expected_improvement_by_model() -> Reader[Env[ProbabilisticModel[ClosedFormD
 def probability_of_feasibility(
         limit: jnp.ndarray
 ) -> Reader[Env[ProbabilisticModel[ClosedFormDistribution]], Acquisition]:
-    return Reader(lambda env: assert_acquisition_shapes(
-        lambda x: jnp.squeeze(env.model(x).cdf(limit))
-    ))
+    return Reader(lambda env: lambda x: jnp.squeeze(env.model(x).cdf(limit)))
 
 
 def negative_lower_confidence_bound(
@@ -83,7 +84,6 @@ def negative_lower_confidence_bound(
         raise ValueError
 
     def empiric(env: Env[ProbabilisticModel[Gaussian]]) -> Acquisition:
-        @assert_acquisition_shapes
         def acquisition(x: jnp.ndarray) -> jnp.ndarray:
             marginal = env.model(x)
             return - jnp.squeeze(marginal.mean - beta * variance(marginal))
@@ -110,6 +110,6 @@ def expected_constrained_improvement(
             eta = jnp.min(env.model(feasible_query_points).mean, axis=0)
             ei = expected_improvement(env.model, eta)
 
-            return assert_acquisition_shapes(lambda at: ei(at) * constraint_fn(at))
+            return lambda at: ei(at) * constraint_fn(at)
         return inner
     return Reader(empiric)
